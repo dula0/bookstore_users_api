@@ -2,8 +2,16 @@ package users
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/dula0/bookstore_users_api/databases/mysql/users_db"
+	"github.com/dula0/bookstore_users_api/utils/date_utils"
 	"github.com/dula0/bookstore_users_api/utils/errors"
+)
+
+const (
+	uniqueEmail     = "email_UNIQUE" // duplicate email error response
+	InsertUserQuery = "INSERT INTO users(first_name, last_name, email, date_created) VALUES(?, ?, ?, ?);"
 )
 
 var (
@@ -12,6 +20,9 @@ var (
 
 // Retrieves user by their user ID or returns an error if there is one
 func (user *User) Get() *errors.RestErr {
+	if err := users_db.Client.Ping(); err != nil {
+		panic(err)
+	}
 	result := usersDB[user.ID]
 	if result == nil {
 		return errors.NotFoundError(fmt.Sprintf("user %d not found", user.ID))
@@ -26,14 +37,27 @@ func (user *User) Get() *errors.RestErr {
 
 // Method to save user into db
 func (user *User) Save() *errors.RestErr {
-	current := usersDB[user.ID]
-	// Check to see if we have a user with a matching ID in the db
-	if current != nil {
-		if current.Email == user.Email {
-			return errors.BadRequestError(fmt.Sprintf("user email %s already exists", user.Email))
-		}
-		return errors.BadRequestError(fmt.Sprintf("user %d already exists", user.ID))
+
+	stmt, err := users_db.Client.Prepare(InsertUserQuery)
+	if err != nil {
+		return errors.InternalServerError(err.Error())
 	}
-	usersDB[user.ID] = user
+	defer stmt.Close()
+
+	user.DateCreated = date_utils.GetNowString()
+
+	insertResult, err := stmt.Exec(user.FirstName, user.LastName, user.Email, user.DateCreated)
+	if err != nil {
+		if strings.Contains(err.Error(), uniqueEmail) {
+			return errors.BadRequestError(fmt.Sprintf("email %s already exists", user.Email))
+		}
+		return errors.InternalServerError(fmt.Sprintf("error while trying to save user: %s", err.Error()))
+	}
+
+	userId, err := insertResult.LastInsertId()
+	if err != nil {
+		return errors.InternalServerError(fmt.Sprintf("error while trying to save user: %s", err.Error()))
+	}
+	user.ID = userId
 	return nil
 }
