@@ -22,3 +22,41 @@ func CreateUser(user users.User) (*users.User, *errors.RestErr) {
 	}
 	return &user, nil
 }
+
+func UpdateUser(isPartial bool, user users.User) (*users.User, *errors.RestErr) {
+	current, err := GetUser(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := user.Validate(); err != nil {
+		return nil, err
+	}
+
+	if !isPartial { // Executes during POST request
+		current.FirstName = user.FirstName
+		current.LastName = user.LastName
+		current.Email = user.Email
+	} else { // Executes during PATCH request
+		if user.FirstName != "" {
+			current.FirstName = user.FirstName
+		}
+		if user.LastName != "" {
+			current.LastName = user.LastName
+		}
+		if user.Email != "" {
+			current.Email = user.Email
+		}
+	}
+
+	err = current.Update()
+	if err != nil {
+		return nil, err
+	}
+	return current, nil
+}
+
+func DeleteUser(userID int64) *errors.RestErr{
+	user := &users.User{ID: userID}
+	return user.Delete()
+}

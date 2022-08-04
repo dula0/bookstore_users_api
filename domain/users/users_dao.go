@@ -1,4 +1,5 @@
 package users
+// data access object serves as the persistence layer so any interactions with the db occurs here
 
 import (
 	"github.com/dula0/bookstore_users_api/databases/mysql/users_db"
@@ -7,12 +8,15 @@ import (
 	"github.com/dula0/bookstore_users_api/utils/mysql_utils"
 )
 
+// SQL Query
 const (
 	insertUserQuery = "INSERT INTO users(first_name, last_name, email, date_created) VALUES(?, ?, ?, ?);"
 	getUserQuery    = "SELECT id, first_name, last_name, email, date_created FROM users WHERE id=?;"
+	updateUserQuery = "UPDATE users SET first_name=?, last_name=?, email=? WHERE id=?;"
+	deleteUserQuery = "DELETE FROM users WHERE id=?;"
 )
 
-// Retrieves user by their user ID or returns an error if there is one
+// Retrieves user by their user ID
 func (user *User) Get() *errors.RestErr {
 
 	stmt, err := users_db.Client.Prepare(getUserQuery)
@@ -54,5 +58,33 @@ func (user *User) Save() *errors.RestErr {
 		return mysql_utils.ParseError(err)
 	}
 	user.ID = userId
+	return nil
+}
+
+func (user *User) Update() *errors.RestErr {
+	stmt, err := users_db.Client.Prepare(updateUserQuery)
+	if err != nil {
+		return errors.InternalServerError(err.Error())
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.FirstName, user.LastName, user.Email, user.ID)
+	if err != nil {
+		return mysql_utils.ParseError(err)
+	}
+	return nil
+}
+
+func (user *User) Delete() *errors.RestErr {
+	stmt, err := users_db.Client.Prepare(deleteUserQuery)
+	if err != nil {
+		return errors.InternalServerError(err.Error())
+	}
+	defer stmt.Close()
+
+	if _, err = stmt.Exec(user.ID); err != nil {
+		return mysql_utils.ParseError(err)
+	}
+
 	return nil
 }

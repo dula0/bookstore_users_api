@@ -22,7 +22,7 @@ func ParseError(err error) *errors.RestErr {
 
 	switch sqlErr.Number {
 	case 1062:
-		return errors.BadRequestError("invalid data")
+		return errors.BadRequestError("email already registered")
 	}
 	return errors.InternalServerError("error processing request")
 }
