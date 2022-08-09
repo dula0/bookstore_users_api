@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/dula0/bookstore_users_api/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,5 +12,7 @@ var (
 
 func StartApp() {
 	urlMap()
+
+	logger.Info("starting the application...")
 	router.Run()
 }
