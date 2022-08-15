@@ -1,8 +1,12 @@
 package crypto_utils
 
 import (
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
+	"io"
+	"os"
 )
 
 func GetMd5(input string) string {
@@ -12,3 +16,13 @@ func GetMd5(input string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+// Hash a password with a secret key
+func HashPassword(password string) string {
+	hash := hmac.New(sha256.New, []byte(os.Getenv("SECRETKEY")))
+
+	io.WriteString(hash, password)
+
+	hashedValue := hash.Sum(nil)
+
+	return hex.EncodeToString(hashedValue)
+}

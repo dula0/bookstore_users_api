@@ -4,10 +4,12 @@ package users
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dula0/bookstore_users_api/databases/mysql/users_db"
 	"github.com/dula0/bookstore_users_api/logger"
 	"github.com/dula0/bookstore_users_api/utils/errors"
+	"github.com/dula0/bookstore_users_api/utils/mysql_utils"
 )
 
 // SQL Query
@@ -20,7 +22,9 @@ const (
 
 	deleteUserQuery = "DELETE FROM users WHERE id=?;"
 
-	findUserByStatusQuery = "SELECT id, first_name, last_name, email, date_created, status FROM users WHERE status=?;"
+	findByStatusQuery = "SELECT id, first_name, last_name, email, date_created, status FROM users WHERE status=?;"
+
+	findByEmailAndPasswordQuery = "SELECT id, first_name, last_name, email, date_created, status FROM users WHERE email=? AND password=?;"
 )
 
 // Retrieves user by their user ID
@@ -101,7 +105,7 @@ func (user *User) Delete() *errors.RestErr {
 }
 
 func (user *User) FindByStatus(status string) ([]User, *errors.RestErr) {
-	stmt, err := users_db.Client.Prepare(findUserByStatusQuery)
+	stmt, err := users_db.Client.Prepare(findByStatusQuery)
 	if err != nil {
 		logger.Error("error with  preparation of user find by status method", err)
 		return nil, errors.InternalServerError("database error")
@@ -129,4 +133,27 @@ func (user *User) FindByStatus(status string) ([]User, *errors.RestErr) {
 		return nil, errors.NotFoundError(fmt.Sprintf("no users matching status %s", status))
 	}
 	return results, nil
+}
+
+func (user *User) FindByEmailAndPassword() *errors.RestErr {
+	stmt, err := users_db.Client.Prepare(findByEmailAndPasswordQuery)
+	if err != nil {
+		logger.Error("error with preparing to get user by email and password", err)
+		return errors.InternalServerError("database error")
+	}
+	defer stmt.Close()
+
+	// Holds the sql query result
+	result := stmt.QueryRow(user.Email, user.Password)
+
+	// copy column values into struct fields.
+	if getErr := result.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.DateCreated, &user.Status); getErr != nil {
+		if strings.Contains(getErr.Error(), mysql_utils.NoRowsError) {
+			return errors.NotFoundError("no user found with credentials")
+		}
+		logger.Error("error when trying to get user by email and password", getErr)
+		return errors.InternalServerError("database error")
+	}
+
+	return nil
 }

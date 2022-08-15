@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+
 	"github.com/dula0/bookstore_users_api/domain/users"
 	"github.com/dula0/bookstore_users_api/utils/crypto_utils"
 	"github.com/dula0/bookstore_users_api/utils/date_utils"
@@ -19,6 +21,7 @@ type userServiceInterface interface {
 	UpdateUser(bool, users.User) (*users.User, *errors.RestErr)
 	DeleteUser(int64) *errors.RestErr
 	SearchUser(string) (users.Users, *errors.RestErr)
+	LoginUser(users.LoginRequest) (*users.User, *errors.RestErr)
 }
 
 func (s *userService) GetUser(userID int64) (*users.User, *errors.RestErr) {
@@ -36,7 +39,7 @@ func (s *userService) CreateUser(user users.User) (*users.User, *errors.RestErr)
 
 	user.Status = users.StatusActive
 	user.DateCreated = date_utils.GetNowDBFormat()
-	user.Password = crypto_utils.GetMd5(user.Password)
+	user.Password = crypto_utils.HashPassword(user.Password)
 
 	if err := user.Save(); err != nil {
 		return nil, err
@@ -85,4 +88,16 @@ func (s *userService) DeleteUser(userID int64) *errors.RestErr {
 func (s *userService) SearchUser(status string) (users.Users, *errors.RestErr) {
 	dao := &users.User{}
 	return dao.FindByStatus(status)
+}
+
+func (s *userService) LoginUser(req users.LoginRequest) (*users.User, *errors.RestErr) {
+	dao := &users.User{
+		Email:    req.Email,
+		Password: crypto_utils.HashPassword(req.Password),
+	}
+	if err := dao.FindByEmailAndPassword(); err != nil {
+		fmt.Println(crypto_utils.HashPassword(req.Password))
+		return nil, err
+	}
+	return dao, nil
 }
